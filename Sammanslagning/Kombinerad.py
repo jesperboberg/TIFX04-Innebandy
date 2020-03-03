@@ -193,6 +193,11 @@ points = np.array(posList)
 # Test i hallen hemma nedre vänster sen klockans varv o sist mitten. Punkter i planet man vill konvertera ner i.
 pts_dst = np.array([[0,0], [0,30], [10,30], [10,0], [5,15]])
 
+# Click first on the 4 free-stroke dots starting bottom left and working your way around the field. After that click
+# first on the bottom and then the top of the two corners of the goaliearea starting with the left and then the right.
+# Finish by clicking on the spot in the middle of the field. In total you should have clicked on 9 points.
+# pts_dst = np.array([[35,15], [35,185], [365,185], [365,15], [68.5,75], [68.5,125], [331.5,125], [331.5,125], [200,100]])
+
 # Calculate matrix H
 h, status = cv2.findHomography(points, pts_dst)
 
