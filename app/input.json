@@ -1,0 +1,56 @@
+{
+    "teams": [
+        {
+            "teamName": "Pixbo",
+            "players": [
+                {
+                    "id": 0,
+                    "name": "Jonathan Stalberg",
+                    "number": 32,
+                    "distance": 118
+                },
+                {
+                    "id":2,
+                    "name": "Ludde",
+                    "number": 1111,
+                    "distance": 14500
+                },
+                {
+                    "id": 1,
+                    "name": "Ida Hoglund Persson",
+                    "number": 21,
+                    "distance": 35
+                }
+            ]
+        },
+        {
+            "teamName": "Storvreta",
+            "players": [
+                {
+                    "id":2,
+                    "name": "Jonathan Stalberg",
+                    "number": 3200,
+                    "distance": 145
+                },
+                {
+                    "id":2,
+                    "name": "Backen",
+                    "number": 4567,
+                    "distance": 1
+                },
+                {
+                    "id":2,
+                    "name": "Preisko",
+                    "number": 9999,
+                    "distance": 11
+                },
+                {
+                    "id": 3,
+                    "name": "Ida Hoglund Persson",
+                    "number": 2100,
+                    "distance": 166
+                }
+            ]
+        }
+    ]
+}
