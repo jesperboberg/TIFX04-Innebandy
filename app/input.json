@@ -20,6 +20,12 @@
                     "name": "Ida Hoglund Persson",
                     "number": 21,
                     "distance": 35
+                },
+                {
+                    "id": 7,
+                    "name": "Preisko",
+                    "number": 99,
+                    "distance": 1234
                 }
             ]
         },
