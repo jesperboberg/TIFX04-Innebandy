@@ -75,6 +75,8 @@ val = 0
 plotvals = []
 throwvalue = 0
 
+ct = CentroidTracker.CentroidTracker()
+
 # PROGRAM SETUP
 
 # Method for choosing area for clock
@@ -178,16 +180,16 @@ Ref_img = cv2.imread("crop_img.jpg")
 
 cv2.startWindowThread()
 cv2.namedWindow("test")
-field = cv2.VideoCapture(2)
+
+field = cv2.VideoCapture("/home/gustav/TIFX04/Arturs_kod/jesper.MP4")
 
 # Loop for choosing coordinates for projecting
-
 while True:
     ret, framefield = field.read()
+    if not ret:
+        continue
     framefield = cv2.resize(framefield, (640, 480))
     cv2.imshow("test", framefield)
-    if not ret:
-        break
     k = cv2.waitKey(1)
 
     # Press ESC to close windows and continue
@@ -203,7 +205,6 @@ while True:
 
     # Press c to see chosen coordinates
     if k%256 == ord("c"):
-
         for n in posList:
             g = g+1
             cv2.circle(framefield, n, 2, (0, 255, 0), 2)
@@ -222,7 +223,6 @@ while True:
         # Convert to numpy for other usages
         posNp = np.array(posList)    
 
-#print(posList)
 points = np.array(posList)
 
 # Test i hallen hemma nedre vänster sen klockans varv o sist mitten. Punkter i planet man vill konvertera ner i.
@@ -243,7 +243,7 @@ hog = cv2.HOGDescriptor()
 hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 
 # Open webcam video stream 0 for built-in webcam, 1 for external webcam
-field = cv2.VideoCapture(2)
+field = cv2.VideoCapture("/home/gustav/TIFX04/Arturs_kod/jesper.MP4")
 
 frame_width = int( field.get(cv2.CAP_PROP_FRAME_WIDTH))
 frame_height =int( field.get( cv2.CAP_PROP_FRAME_HEIGHT))
@@ -256,16 +256,30 @@ fourcc = cv2.VideoWriter_fourcc('X','V','I','D')
 def nothing(x):
     pass
 
-ct = CentroidTracker.CentroidTracker()
-
-ret, frame1 = field.read()
+ret1, frame1 = field.read()
 ret2, frame2 = field.read()
 
 start_time = time.time()
 
-# Mainloop
+cv2.namedWindow('Control')
 
+cv2.namedWindow("Final")
+cv2.createTrackbar("Lower", "Final", 20,50,nothing)
+cv2.createTrackbar("Higher", "Final", 255,255,nothing)
+cv2.createTrackbar("D. Iterations", "Final", 0, 100, nothing)
+
+i = 0
+# Main loop
 while field.isOpened():
+
+    # Check if any frame is None then break
+    if not ret2 or not ret1:
+        print('continue bc: ', ret1, ret2)
+        frame1 = frame2
+        ret1 = ret2
+        #reading a new value, this way the while loop will work
+        ret2, frame2 = field.read()
+        continue
 
     # Check if any frame is None then break
     if frame2 is None:
@@ -284,29 +298,32 @@ while field.isOpened():
     gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
     #Smoothing the picture
     blur = cv2.GaussianBlur(gray, (5,5), 0)
-
+    
+    low = cv2.getTrackbarPos("Lower", "Final")
+    high = cv2.getTrackbarPos("Higher", "Final")
+    dilated = cv2.getTrackbarPos("D. Iterations", "Final")
     # Adjust threshold values here
-    _, thresh = cv2.threshold(blur, 27, 200, cv2.THRESH_BINARY)
+    _, thresh = cv2.threshold(blur, low, high, cv2.THRESH_BINARY)
 
     #Obs that you can change iterations for refinement
-    dilated = cv2.dilate(thresh, None, iterations=3)
+    dilated = cv2.dilate(thresh, None, iterations=dilated)
 
     #Finding contours, obs this is a list/array
     contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-
     # Iterate over all identified contours
-
     for contour in contours:
         #x,y coordinate, then width and height
         (x, y, w, h) = cv2.boundingRect(contour)
         boxes = np.array([x, y, x+w, y+h])
 
-        rect = [x,y,x+w,y+h]
+        rect = [x,y,x+w,y+h] 
         rectList.append(rect)
+        #print(rect)
+        #print(rectList)
 
         # Adjust how small boxes we tolerate here
-        if cv2.contourArea(contour) < 10000:
+        if cv2.contourArea(contour) < 40:
             continue
 
         # Adjust how big boxes we tolerate here
@@ -326,6 +343,7 @@ while field.isOpened():
         x = abs(xpoint-aprim[0][0][0])
         y = abs(ypoint-aprim[0][0][1])
         coordstemp.append((xcoord, ycoord))
+        #print(coordstemp)
         xdisttemp = xdisttemp + x
         ydisttemp = ydisttemp + y
         nowdistance = math.sqrt(x*x+y*y)
@@ -344,17 +362,20 @@ while field.isOpened():
 
     k = cv2.waitKey(1)
 
+    #objects = ct.update(rect)
     objects = ct.update(rectList)
+    rectList=[] #Detta var ändringen för ID grejen!!
 
     # Iterate over all detected objects
-    
     for (objectID, centroid) in objects.items():
         # draw both the ID of the object and the centroid of the
         # object on the output frame
         #if objectID<4:
-        text = "ID {}".format(objectID)
-        cv2.putText(frame1, text, (centroid[0] - 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        cv2.circle(frame1, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
+            text = "ID {}".format(objectID)
+        #print(objectID)        
+            cv2.putText(frame1, text, (centroid[0] - 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            cv2.circle(frame1, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
+            
         #cv2.putText(fgmask, text, (centroid[0] - 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         #cv2.circle(fgmask, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
 
@@ -362,13 +383,16 @@ while field.isOpened():
 
     if (i % fps) == 0:
         ret, clock = clockimages.read()
+        print(ret)
+        #print(clock[ref_point[0][1]]:ref_point[1][1])
+        
         print("--- %s seconds ---" % (time.time() - start_time))
         small_frame = clock[ref_point[0][1]:ref_point[1][1], ref_point[0][0]:ref_point[1][0]]
         cv2.imshow("Small Frame", small_frame)
         error = mse(Ref_img, small_frame)
 
         Ref_img = small_frame
-
+        
         if error < 100:
             print("Same image")
             #print("%.2f : %.2f" % (Minut, Sekund))
@@ -402,7 +426,7 @@ while field.isOpened():
             absolutedist = absolutedist + absolutedisttemp
             #print("X-distance traveled is: %.2f dm" % xdist)
             #print("Y-distance traveled is: %.2f dm" % ydist)
-            #print("Absolute distance traveled is: %.2f dm" % absolutedist)
+            print("Absolute distance traveled is: %.2f dm" % absolutedist)
             absolutedisttemp = 0
             Runningtemp = 0
             Walkingtemp = 0
@@ -412,14 +436,24 @@ while field.isOpened():
         #print(rect)
         cv2.putText(frame1, "Status: {}".format('Movement'), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
                     1, (0, 0, 255), 3)
+        
 
     image = cv2.resize(frame1, (640,480))
+    dilated = cv2.resize(dilated, (640,480))
+    #gray = cv2.resize(gray, (640,480))
+    #blur = cv2.resize(blur, (640,480))
     #out.write(image)
-    cv2.imshow("feed", image)
+    dilated = cv2.cvtColor(dilated, cv2.COLOR_GRAY2BGR)
+    #gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+    #blur = cv2.cvtColor(blur, cv2.COLOR_GRAY2BGR)
+    subset1 = cv2.hconcat([gray,blur])
+    #subset2 = cv2.hconcat([image, dilated])
+    #final = cv2.vconcat([subset1, subset2])
+    cv2.imshow("Final", subset2)
     #cv2.imshow("feed2", fgmask)
     frame1 = frame2
     #reading a new value, this way the while loop will work
-    ret3, frame2 = field.read()
+    ret2, frame2 = field.read()
     #print("ret3 = ")
     #print(ret3)
 
@@ -439,20 +473,20 @@ if totDist != 0:
     ProcentWalking = 100*Walking/totDist
 
 # Presenting results below
-print(totcoords)
 print("Längden av totcoords är: %.2f" % len(totcoords))
-
-heatmap, xedges, yedges = np.histogram2d(*zip(*totcoords), bins=(64, 64), range=[[-30,30],[-30,30]]) # Bins sätter upplösningen
+print('Iterations in mainloop: ', i)
+print('Length of object list', len(objects))
+#heatmap, xedges, yedges = np.histogram2d(*zip(*totcoords), bins=(64, 64), range=[[-30,30],[-30,30]]) # Bins sätter upplösningen
 # Range sätter faktiska begränsningar. Notera att y-axeln är inverterad i grafen
-extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+#extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
 
-plt.clf()
-plt.title("Heatmap over player movement")
-plt.ylabel("Kortsida")
-plt.xlabel("Långsida")
-plt.gca().invert_yaxis()
-plt.imshow(heatmap, extent=extent, origin="lower")
-plt.show()
+#plt.clf()
+#plt.title("Heatmap over player movement")
+#plt.ylabel("Kortsida")
+#plt.xlabel("Långsida")
+#plt.gca().invert_yaxis()
+#plt.imshow(heatmap, extent=extent, origin="lower")
+#plt.show()
 
 #plt.plot(*zip(*totcoords))
 #plt.suptitle("Rörelse över planen")
@@ -464,8 +498,8 @@ print("X-distance traveled is: %.2f dm" % xdist)
 print("Y-distance traveled is: %.2f dm" % ydist)
 print("Absolute distance traveled is: %.2f dm" % absolutedist)
 
-print("Procent running: %.2f procent" % ProcentRunning)
-print("Procent jogging: %.2f procent" % ProcentJogging)
-print("Procent walking: %.2f procent" % ProcentWalking)
+#print("Procent running: %.2f procent" % ProcentRunning)
+#print("Procent jogging: %.2f procent" % ProcentJogging)
+#print("Procent walking: %.2f procent" % ProcentWalking)
 
 print("Antalet kastade gånger = %.2f" % throwvalue)
