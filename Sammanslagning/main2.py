@@ -1,3 +1,10 @@
+'''
+This code will work differently depending on different videofiles:
+
+*Consider changing how small rectangles we tolerate - line 319
+*Consider increasing the iterations - Line 302
+'''
+
 import CentroidTracker
 import numpy as np
 import cv2
@@ -292,7 +299,7 @@ while field.isOpened():
     _, thresh = cv2.threshold(blur, 27, 200, cv2.THRESH_BINARY)
 
     #Obs that you can change iterations for refinement
-    dilated = cv2.dilate(thresh, None, iterations=3)
+    dilated = cv2.dilate(thresh, None, iterations=8)
 
     #Finding contours, obs this is a list/array
     contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
