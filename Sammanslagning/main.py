@@ -6,6 +6,8 @@ import time
 import math
 import ctypes
 import matplotlib.pyplot as plt
+from collections import defaultdict
+import json
 
 # TODO: Backen behöver du denna linen?
 # pytesseract.pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
@@ -15,20 +17,23 @@ import matplotlib.pyplot as plt
 ref_point = []
 cropping = False
 
+team = "Pixbo"
+
 # Coordinates for heat map
-coordstemp = []
-coords = []
-totcoords = []
+coordstemp = {}
+coords = {}
+totcoords = defaultdict(list)
+totDist = defaultdict(int)
 
 # Variables for sdpee speed over time
 
-Running = 0
-Jogging = 0
-Walking = 0
+Running = defaultdict(int)
+Jogging = defaultdict(int)
+Walking = defaultdict(int)
 
-Runningtemp = 0
-Joggingtemp = 0
-Walkingtemp = 0
+Runningtemp = {}
+Joggingtemp = {}
+Walkingtemp = {}
 
 x = 0
 y = 0
@@ -53,16 +58,16 @@ rectList = []
 
 # Unsorted variables
 
-xpoint = 0
-ypoint = 0
+xpoint = {}
+ypoint = {}
 
-xdist = 0
-ydist = 0
-absolutedist = 0
+xdist = {}
+ydist = {}
+absolutedist = {}
 
-xdisttemp = 0
-ydisttemp = 0
-absolutedisttemp = 0
+xdisttemp = {}
+ydisttemp = {}
+absolutedisttemp = {}
 
 Sekund = 0
 Minut = 0
@@ -75,9 +80,15 @@ val = 0
 plotvals = []
 throwvalue = 0
 
+data = None
+# Test i hallen hemma nedre vänster sen klockans varv o sist mitten. Punkter i planet man vill konvertera ner i.
+pts_dst = np.array([[0,0], [0,200], [170,200], [170,0],[85,100]])
+
 ct = CentroidTracker.CentroidTracker()
 
-# PROGRAM SETUP
+with open('/home/gustav/TIFX04/Arturs_kod/input.json') as json_file:
+    data = json.load(json_file)
+
 
 # Method for choosing area for clock
 def shape_selection(event, x, y, flags, param):
@@ -225,17 +236,12 @@ while True:
 
 points = np.array(posList)
 
-# Test i hallen hemma nedre vänster sen klockans varv o sist mitten. Punkter i planet man vill konvertera ner i.
-pts_dst = np.array([[0,0], [0,40], [40,40], [40,0],[20,20]])
-
 # Calculate matrix H for coordinate projecting to 2D
 htransf, status = cv2.findHomography(points, pts_dst)
 
 # Reset webcams
 clock.release()
 field.release()
-
-print(htransf)
 
 clockimages = cv2.VideoCapture(0)
 
@@ -261,12 +267,10 @@ ret2, frame2 = field.read()
 
 start_time = time.time()
 
-cv2.namedWindow('Control')
-
 cv2.namedWindow("Final")
 cv2.createTrackbar("Lower", "Final", 20,50,nothing)
 cv2.createTrackbar("Higher", "Final", 255,255,nothing)
-cv2.createTrackbar("D. Iterations", "Final", 0, 100, nothing)
+cv2.createTrackbar("D. Iterations", "Final", 20, 100, nothing)
 
 i = 0
 # Main loop
@@ -280,6 +284,7 @@ while field.isOpened():
         #reading a new value, this way the while loop will work
         ret2, frame2 = field.read()
         continue
+
 
     # Check if any frame is None then break
     if frame2 is None:
@@ -332,34 +337,6 @@ while field.isOpened():
 
         cv2.rectangle(frame1, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
-        a = np.array([[boxes[0],boxes[1]]], dtype="float32")
-        # TODO: next line shouldn't matter right?
-        a = np.array([a])
-
-        # TODO: this should be commented by someone who knows better than me
-        aprim = cv2.perspectiveTransform(a, htransf)
-        xcoord = aprim[0][0][0]
-        ycoord = aprim[0][0][1]
-        x = abs(xpoint-aprim[0][0][0])
-        y = abs(ypoint-aprim[0][0][1])
-        coordstemp.append((xcoord, ycoord))
-        #print(coordstemp)
-        xdisttemp = xdisttemp + x
-        ydisttemp = ydisttemp + y
-        nowdistance = math.sqrt(x*x+y*y)
-        absolutedisttemp = absolutedisttemp + nowdistance
-        xpoint = aprim[0][0][0]
-        ypoint = aprim[0][0][1]
-
-        # Running faster than 2.68224 m/s, jogging between that and 1.38582 m/s. walking below that
-        if nowdistance > Runningborder:
-            Runningtemp = Runningtemp + 1
-
-        elif nowdistance < Joggingborder:
-            Walkingtemp = Walkingtemp + 1
-        else:
-            Joggingtemp = Joggingtemp + 1
-
     k = cv2.waitKey(1)
 
     #objects = ct.update(rect)
@@ -371,19 +348,74 @@ while field.isOpened():
         # draw both the ID of the object and the centroid of the
         # object on the output frame
         #if objectID<4:
-            text = "ID {}".format(objectID)
-        #print(objectID)        
-            cv2.putText(frame1, text, (centroid[0] - 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-            cv2.circle(frame1, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
+        
+        text = "ID {}".format(objectID)       
+        cv2.putText(frame1, text, (centroid[0] - 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        cv2.circle(frame1, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
             
         #cv2.putText(fgmask, text, (centroid[0] - 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         #cv2.circle(fgmask, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
+
+        a = np.array([[centroid[0],centroid[1]]], dtype="float32")
+        # TODO: next line shouldn't matter right?
+        a = np.array([a])
+
+        # TODO: this should be commented by someone who knows better than me
+        aprim = cv2.perspectiveTransform(a, htransf)
+        if objectID == 0:
+            print(aprim[0][0])
+        xcoord = aprim[0][0][0]
+        ycoord = aprim[0][0][1]
+        try:
+            x = abs(xpoint[objectID]-aprim[0][0][0])
+            y = abs(ypoint[objectID]-aprim[0][0][1])
+            if objectID in coordstemp:
+                coordstemp[objectID].append([xcoord, ycoord])
+            else:
+                coordstemp[objectID] = [[xcoord, ycoord]]
+            #print(coordstemp)
+            if objectID not in xdisttemp:
+                xdisttemp[objectID] = 0
+                ydisttemp[objectID] = 0
+            else:
+                xdisttemp[objectID] = xdisttemp[objectID] + x
+                ydisttemp[objectID] = ydisttemp[objectID] + y
+                
+
+            nowdistance = math.sqrt(x*x+y*y)
+
+            if objectID in absolutedisttemp:
+                absolutedisttemp[objectID] = absolutedisttemp[objectID] + nowdistance
+            else:
+                absolutedisttemp[objectID] = 0
+        
+            xpoint[objectID] = aprim[0][0][0]
+            ypoint[objectID] = aprim[0][0][1]
+
+            # Running faster than 2.68224 m/s, jogging between that and 1.38582 m/s. walking below that
+            if nowdistance > Runningborder:
+                if objectID is not None and objectID not in Runningtemp:
+                    Runningtemp[objectID] = 1
+                else:
+                    Runningtemp[objectID] = Runningtemp[objectID] + 1
+            elif nowdistance < Joggingborder:
+                if objectID is not None and objectID not in Joggingtemp:
+                    Joggingtemp[objectID] = 1
+                else:
+                    Joggingtemp[objectID] = Joggingtemp[objectID] + 1
+            else:
+                if objectID is not None and objectID not in Walkingtemp:
+                    Walkingtemp[objectID] = 1
+                else:
+                    Walkingtemp[objectID] = Walkingtemp[objectID] + 1
+        except KeyError:
+            xpoint[objectID] = aprim[0][0][0]
+            ypoint[objectID] = aprim[0][0][1]
 
     #cv2.drawContours(frame1, contours, -1, (0, 255, 0), 2)
 
     if (i % fps) == 0:
         ret, clock = clockimages.read()
-        print(ret)
         #print(clock[ref_point[0][1]]:ref_point[1][1])
         
         print("--- %s seconds ---" % (time.time() - start_time))
@@ -393,17 +425,17 @@ while field.isOpened():
 
         Ref_img = small_frame
         
-        if error < 100:
+        if error < 0:
             print("Same image")
             #print("%.2f : %.2f" % (Minut, Sekund))
             #cv2.imshow("Framefield", framefield)
-            coordstemp = []
-            absolutedisttemp = 0
-            Runningtemp = 0
-            Walkingtemp = 0
-            Joggingtemp = 0
-            xdisttemp = 0
-            ydisttemp = 0
+            coordstemp = {}
+            absolutedisttemp = {}
+            Runningtemp = {}
+            Walkingtemp = {}
+            Joggingtemp = {}
+            xdisttemp = {}
+            ydisttemp = {}
             throwvalue = throwvalue + 1
         else:
             #print("New image")
@@ -413,26 +445,56 @@ while field.isOpened():
                 Minut = Minut + 1
             #print("%.2f : %.2f" % (Minut, Sekund))
             #print("Här tas mätningar")
-            Jogging = Jogging + Joggingtemp
-            Running = Running + Runningtemp
-            Walking = Walking + Walkingtemp
-            totcoords.extend(coordstemp)
-            #print(coordstemp)
-            val = 0
-            coordstemp = []
-
-            xdist = xdist + xdisttemp
-            ydist = ydist + ydisttemp
-            absolutedist = absolutedist + absolutedisttemp
+            for objectID in objects:
+                
+                if nowdistance > Runningborder:
+                    if objectID is not None and objectID not in Runningtemp:
+                        Runningtemp[objectID] = 1
+                    else:
+                        Runningtemp[objectID] = Runningtemp[objectID] + 1
+                elif nowdistance < Joggingborder:
+                    if objectID is not None and objectID not in Joggingtemp:
+                        Joggingtemp[objectID] = 1
+                    else:
+                        Joggingtemp[objectID] = Joggingtemp[objectID] + 1
+                else:
+                    if objectID is not None and objectID not in Walkingtemp:
+                        Walkingtemp[objectID] = 1
+                    else:
+                        Walkingtemp[objectID] = Walkingtemp[objectID] + 1
+                
+                
+                if objectID in totcoords:
+                    tmp = totcoords[objectID]
+                    tmp.append(coordstemp[objectID])                    
+                    totcoords[objectID] = tmp
+                else:
+                    totcoords[objectID] = coordstemp[objectID]
+                
+                #print(coordstemp)
+                val = 0
+                if objectID in absolutedist:
+                    xdist[objectID] = xdist[objectID] + xdisttemp[objectID]
+                    ydist[objectID] = ydist[objectID] + ydisttemp[objectID]
+                    absolutedist[objectID] = absolutedist[objectID] + absolutedisttemp[objectID]
+                else:
+                    xdist[objectID] = xdisttemp[objectID]
+                    ydist[objectID] = ydisttemp[objectID]
+                    absolutedist[objectID] = absolutedisttemp[objectID]
+                if objectID < 3:
+                    data["teams"][0]["players"][objectID]['distance'] = absolutedist[objectID]
             #print("X-distance traveled is: %.2f dm" % xdist)
             #print("Y-distance traveled is: %.2f dm" % ydist)
-            print("Absolute distance traveled is: %.2f dm" % absolutedist)
-            absolutedisttemp = 0
-            Runningtemp = 0
-            Walkingtemp = 0
-            Joggingtemp = 0
-            xdisttemp = 0
-            ydisttemp = 0
+                print("Absolute distance traveled for ID %d is: %.2f dm" % (objectID, absolutedist[objectID]))
+            with open('/home/gustav/TIFX04/Arturs_kod/input.json', 'w') as outfile:
+                json.dump(data,outfile)
+            absolutedisttemp = {}
+            Runningtemp = {}
+            Walkingtemp = {}
+            Joggingtemp = {}
+            xdisttemp = {}
+            ydisttemp = {}
+            coordstemp = {}
         #print(rect)
         cv2.putText(frame1, "Status: {}".format('Movement'), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
                     1, (0, 0, 255), 3)
@@ -446,8 +508,8 @@ while field.isOpened():
     dilated = cv2.cvtColor(dilated, cv2.COLOR_GRAY2BGR)
     #gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
     #blur = cv2.cvtColor(blur, cv2.COLOR_GRAY2BGR)
-    subset1 = cv2.hconcat([gray,blur])
-    #subset2 = cv2.hconcat([image, dilated])
+    #subset1 = cv2.hconcat([gray,blur])
+    subset2 = cv2.hconcat([image, dilated])
     #final = cv2.vconcat([subset1, subset2])
     cv2.imshow("Final", subset2)
     #cv2.imshow("feed2", fgmask)
@@ -459,18 +521,21 @@ while field.isOpened():
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
-
+    if i == 950:
+        break
+    
 # Exit GUI and release video streams
 cv2.destroyAllWindows()
 field.release()
 clockimages.release()
 
-# Distance calculations
-totDist = Running + Jogging + Walking
-if totDist != 0:
-    ProcentRunning = 100*Running/totDist
-    ProcentJogging = 100*Jogging/totDist
-    ProcentWalking = 100*Walking/totDist
+for objectID in objects:
+    # Distance calculations
+    totDist[objectID] = Running[objectID] + Jogging[objectID] + Walking[objectID]
+    if totDist[objectID] != 0:
+        ProcentRunning[objectID] = 100*Running[objectID]/totDist[objectID]
+        ProcentJogging[objectID] = 100*Jogging[objectID]/totDist[objectID]
+        ProcentWalking[objectID] = 100*Walking[objectID]/totDist[objectID]
 
 # Presenting results below
 print("Längden av totcoords är: %.2f" % len(totcoords))
@@ -493,10 +558,21 @@ print('Length of object list', len(objects))
 #plt.axis([0, 30, 0, 30])
 #plt.show()
 
+with open("/home/gustav/TIFX04/Arturs_kod/input.json") as json_file:
+    parsed = json.load(json_file)
+print(json.dumps(parsed, indent=4))
 
-print("X-distance traveled is: %.2f dm" % xdist)
-print("Y-distance traveled is: %.2f dm" % ydist)
-print("Absolute distance traveled is: %.2f dm" % absolutedist)
+for objectID in objects:
+    print('STATISTICS FOR ID %d' % objectID)
+    if objectID in xdist:
+        print("X-distance traveled is: %.2f dm" % xdist[objectID])
+    if objectID in ydist:
+        print("Y-distance traveled is: %.2f dm" % ydist[objectID])
+    if objectID in absolutedist:
+        print("Absolute distance traveled is: %.2f dm" % absolutedist[objectID])
+    if objectID not in xdist and objectID not in ydist and objectID not in absolutedist:
+        print('no data collected')
+    print('------------------------------------------')
 
 #print("Procent running: %.2f procent" % ProcentRunning)
 #print("Procent jogging: %.2f procent" % ProcentJogging)
