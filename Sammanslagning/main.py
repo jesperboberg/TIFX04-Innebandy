@@ -9,9 +9,6 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 import json
 
-# TODO: Backen behöver du denna linen?
-# pytesseract.pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
-
 # initialize the list of reference points and boolean indicating
 # whether cropping is being performed or not
 ref_point = []
@@ -35,8 +32,8 @@ Runningtemp = {}
 Joggingtemp = {}
 Walkingtemp = {}
 
-x = 0
-y = 0
+X = {}
+Y = {}
 
 global error
 error = 0
@@ -57,7 +54,6 @@ g = 0
 rectList = []
 
 # Unsorted variables
-
 xpoint = {}
 ypoint = {}
 
@@ -72,47 +68,40 @@ absolutedisttemp = {}
 Sekund = 0
 Minut = 0
 
-xcoord = 0
-ycoord = 0
+xcoord = {}
+ycoord = {}
 
 boxes=np.zeros(4)
-val = 0
-plotvals = []
+#val = 0 #Unnecessary?
+#plotvals = [] #Unnecessary
 throwvalue = 0
 
 data = None
-# Test i hallen hemma nedre vänster sen klockans varv o sist mitten. Punkter i planet man vill konvertera ner i.
-pts_dst = np.array([[0,0], [0,200], [170,200], [170,0],[85,100]])
 
 ct = CentroidTracker.CentroidTracker()
 
-with open('/home/gustav/TIFX04/Arturs_kod/input.json') as json_file:
+with open('input.json') as json_file:
     data = json.load(json_file)
-
 
 # Method for choosing area for clock
 def shape_selection(event, x, y, flags, param):
     # grab references to the global variables
     global ref_point, cropping
-
     # if the left mouse button was clicked, record the starting
     # (x, y) coordinates and indicate that cropping is being
     # performed
     if event == cv2.EVENT_LBUTTONDOWN:
         ref_point = [(x, y)]
         cropping = True
-
     # check to see if the left mouse button was released
     elif event == cv2.EVENT_LBUTTONUP:
         # record the ending (x, y) coordinates and indicate that
         # the cropping operation is finished
         ref_point.append((x, y))
         cropping = False
-
         # draw a rectangle around the region of interest
         cv2.rectangle(frameclock, ref_point[0], ref_point[1], (0, 255, 0), 2)
         cv2.imshow("image", frameclock)
-
 # Mean square error function
 def mse(imageA, imageB):
     err = 0
@@ -124,7 +113,6 @@ def mse(imageA, imageB):
             err /= float(imageA.shape[0] * imageA.shape[1])
     # Return the mse, the lower the error, the more "similar" the two images are
     return err
-
 # Method for choosing coordinates to project
 def onMouse(event, i, j, flags, param):
     global posList
@@ -135,7 +123,7 @@ def onMouse(event, i, j, flags, param):
         cv2.circle(framefield, (i, j), 2, (0, 255, 0), 2)
         cv2.putText(framefield, "{}".format(click), (i+3, j+3), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
         cv2.imshow(img_name, framefield)
-
+        
 clock = cv2.VideoCapture(0)
 cv2.namedWindow("test")
 
@@ -192,7 +180,7 @@ Ref_img = cv2.imread("crop_img.jpg")
 cv2.startWindowThread()
 cv2.namedWindow("test")
 
-field = cv2.VideoCapture("/home/gustav/TIFX04/Arturs_kod/jesper.MP4")
+field = cv2.VideoCapture("jesper4.mov")
 
 # Loop for choosing coordinates for projecting
 while True:
@@ -236,6 +224,9 @@ while True:
 
 points = np.array(posList)
 
+# Test i hallen hemma nedre vänster sen klockans varv o sist mitten. Punkter i planet man vill konvertera ner i.
+pts_dst = np.array([[0,0], [0,200], [170,200], [170,0],[85,100]])
+
 # Calculate matrix H for coordinate projecting to 2D
 htransf, status = cv2.findHomography(points, pts_dst)
 
@@ -249,7 +240,7 @@ hog = cv2.HOGDescriptor()
 hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 
 # Open webcam video stream 0 for built-in webcam, 1 for external webcam
-field = cv2.VideoCapture("/home/gustav/TIFX04/Arturs_kod/jesper.MP4")
+field = cv2.VideoCapture("jesper4.mov")
 
 frame_width = int( field.get(cv2.CAP_PROP_FRAME_WIDTH))
 frame_height =int( field.get( cv2.CAP_PROP_FRAME_HEIGHT))
@@ -266,6 +257,8 @@ ret1, frame1 = field.read()
 ret2, frame2 = field.read()
 
 start_time = time.time()
+
+cv2.namedWindow('Control')
 
 cv2.namedWindow("Final")
 cv2.createTrackbar("Lower", "Final", 20,50,nothing)
@@ -284,7 +277,6 @@ while field.isOpened():
         #reading a new value, this way the while loop will work
         ret2, frame2 = field.read()
         continue
-
 
     # Check if any frame is None then break
     if frame2 is None:
@@ -315,108 +307,111 @@ while field.isOpened():
 
     #Finding contours, obs this is a list/array
     contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
+    
     # Iterate over all identified contours
     for contour in contours:
         #x,y coordinate, then width and height
         (x, y, w, h) = cv2.boundingRect(contour)
         boxes = np.array([x, y, x+w, y+h])
-
+        #print(boxes)
+    
         rect = [x,y,x+w,y+h] 
         rectList.append(rect)
-        #print(rect)
-        #print(rectList)
 
         # Adjust how small boxes we tolerate here
         if cv2.contourArea(contour) < 40:
             continue
 
-        # Adjust how big boxes we tolerate here
-        #if cv2.contourArea(contour) > 10000:
-        #   continue
-
         cv2.rectangle(frame1, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
     k = cv2.waitKey(1)
 
-    #objects = ct.update(rect)
     objects = ct.update(rectList)
     rectList=[] #Detta var ändringen för ID grejen!!
-
+    #print(objects)
     # Iterate over all detected objects
     for (objectID, centroid) in objects.items():
         # draw both the ID of the object and the centroid of the
         # object on the output frame
         #if objectID<4:
-        
+        #print(centroid)
         text = "ID {}".format(objectID)       
         cv2.putText(frame1, text, (centroid[0] - 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         cv2.circle(frame1, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
-            
-        #cv2.putText(fgmask, text, (centroid[0] - 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        #cv2.circle(fgmask, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
-
-        a = np.array([[centroid[0],centroid[1]]], dtype="float32")
-        # TODO: next line shouldn't matter right?
-        a = np.array([a])
+        
+        a = np.array([[centroid[0],centroid[1]]],dtype="float32")
+        #a = np.array([[(boxes[0]+boxes[2])/2,(boxes[1]+boxes[3])/2]], dtype="float32")
+        a = np.array([a]) #Convert from [[625. 178]] --> [[[625. 178]]]
 
         # TODO: this should be commented by someone who knows better than me
         aprim = cv2.perspectiveTransform(a, htransf)
-        if objectID == 0:
-            print(aprim[0][0])
-        xcoord = aprim[0][0][0]
-        ycoord = aprim[0][0][1]
-        try:
-            x = abs(xpoint[objectID]-aprim[0][0][0])
-            y = abs(ypoint[objectID]-aprim[0][0][1])
-            if objectID in coordstemp:
-                coordstemp[objectID].append([xcoord, ycoord])
-            else:
-                coordstemp[objectID] = [[xcoord, ycoord]]
-            #print(coordstemp)
-            if objectID not in xdisttemp:
-                xdisttemp[objectID] = 0
-                ydisttemp[objectID] = 0
-            else:
-                xdisttemp[objectID] = xdisttemp[objectID] + x
-                ydisttemp[objectID] = ydisttemp[objectID] + y
-                
-
-            nowdistance = math.sqrt(x*x+y*y)
-
-            if objectID in absolutedisttemp:
-                absolutedisttemp[objectID] = absolutedisttemp[objectID] + nowdistance
-            else:
-                absolutedisttemp[objectID] = 0
         
-            xpoint[objectID] = aprim[0][0][0]
-            ypoint[objectID] = aprim[0][0][1]
+        #xcoord = aprim[0][0][0]
+        #ycoord = aprim[0][0][1]
+        xcoord[objectID] = aprim[0][0][0]
+        ycoord[objectID] = aprim[0][0][1]
+        print("ID", objectID, "X ", xcoord[objectID], "Y ", ycoord[objectID])
+        
+        #x = abs(xpoint-aprim[0][0][0])
+        #y = abs(ypoint-aprim[0][0][1]) 
+        if objectID not in xpoint:
+            xpoint[objectID] = xcoord[objectID] #annars 0
+            ypoint[objectID] = ycoord[objectID]
+        
+        #x[objectID] = abs(xpoint-aprim[0][0][0])
+        #y[objectID] = abs(ypoint-aprim[0][0][1]) 
+        X[objectID] = abs(xpoint[objectID]-xcoord[objectID])
+        Y[objectID] = abs(ypoint[objectID]-ycoord[objectID])
+        if objectID in coordstemp:
+            #coordstemp[objectID].append([xcoord, ycoord])
+            coordstemp[objectID].append([xcoord[objectID], ycoord[objectID]])
+        else:
+            #coordstemp[objectID] = [[xcoord, ycoord]]
+            coordstemp[objectID] = [[xcoord[objectID], ycoord[objectID]]]            
+        #print(coordstemp)
+        if objectID not in xdisttemp:
+            xdisttemp[objectID] = 0
+            ydisttemp[objectID] = 0
+        else:
+            #xdisttemp[objectID] = xdisttemp[objectID] + x
+            #ydisttemp[objectID] = ydisttemp[objectID] + y
+            xdisttemp[objectID] = xdisttemp[objectID] + X[objectID]
+            ydisttemp[objectID] = ydisttemp[objectID] + Y[objectID]
+        
+        #print("ID: ", objectID, "X: ",X[objectID]) ##################################################################################################        
+        #print("x",X,"xdisttemp",xdisttemp) #################################################
+        #nowdistance = math.sqrt(x*x+y*y)
+        nowdistance = math.sqrt(X[objectID]*X[objectID]+Y[objectID]*Y[objectID])
 
-            # Running faster than 2.68224 m/s, jogging between that and 1.38582 m/s. walking below that
-            if nowdistance > Runningborder:
-                if objectID is not None and objectID not in Runningtemp:
-                    Runningtemp[objectID] = 1
-                else:
-                    Runningtemp[objectID] = Runningtemp[objectID] + 1
-            elif nowdistance < Joggingborder:
-                if objectID is not None and objectID not in Joggingtemp:
-                    Joggingtemp[objectID] = 1
-                else:
-                    Joggingtemp[objectID] = Joggingtemp[objectID] + 1
+        if objectID in absolutedisttemp:
+            absolutedisttemp[objectID] = absolutedisttemp[objectID] + nowdistance
+        else:
+            absolutedisttemp[objectID] = 0
+        
+        #xpoint = aprim[0][0][0]
+        #ypoint = aprim[0][0][1]
+        xpoint[objectID] = aprim[0][0][0]
+        ypoint[objectID] = aprim[0][0][1]
+
+        # Running faster than 2.68224 m/s, jogging between that and 1.38582 m/s. walking below that
+        if nowdistance > Runningborder:
+            if objectID is not None and objectID not in Runningtemp:
+                Runningtemp[objectID] = 1
             else:
-                if objectID is not None and objectID not in Walkingtemp:
-                    Walkingtemp[objectID] = 1
-                else:
-                    Walkingtemp[objectID] = Walkingtemp[objectID] + 1
-        except KeyError:
-            xpoint[objectID] = aprim[0][0][0]
-            ypoint[objectID] = aprim[0][0][1]
-
-    #cv2.drawContours(frame1, contours, -1, (0, 255, 0), 2)
+                Runningtemp[objectID] = Runningtemp[objectID] + 1
+        elif nowdistance < Joggingborder:
+            if objectID is not None and objectID not in Joggingtemp:
+                Joggingtemp[objectID] = 1
+            else:
+                Joggingtemp[objectID] = Joggingtemp[objectID] + 1
+        else:
+            if objectID is not None and objectID not in Walkingtemp:
+                Walkingtemp[objectID] = 1
+            else:
+                Walkingtemp[objectID] = Walkingtemp[objectID] + 1
 
     if (i % fps) == 0:
         ret, clock = clockimages.read()
-        #print(clock[ref_point[0][1]]:ref_point[1][1])
         
         print("--- %s seconds ---" % (time.time() - start_time))
         small_frame = clock[ref_point[0][1]:ref_point[1][1], ref_point[0][0]:ref_point[1][0]]
@@ -427,8 +422,6 @@ while field.isOpened():
         
         if error < 0:
             print("Same image")
-            #print("%.2f : %.2f" % (Minut, Sekund))
-            #cv2.imshow("Framefield", framefield)
             coordstemp = {}
             absolutedisttemp = {}
             Runningtemp = {}
@@ -438,13 +431,11 @@ while field.isOpened():
             ydisttemp = {}
             throwvalue = throwvalue + 1
         else:
-            #print("New image")
             Sekund = Sekund + 1
             if Sekund == 60:
                 Sekund = 0
                 Minut = Minut + 1
-            #print("%.2f : %.2f" % (Minut, Sekund))
-            #print("Här tas mätningar")
+
             for objectID in objects:
                 
                 if nowdistance > Runningborder:
@@ -463,15 +454,13 @@ while field.isOpened():
                     else:
                         Walkingtemp[objectID] = Walkingtemp[objectID] + 1
                 
-                
                 if objectID in totcoords:
                     tmp = totcoords[objectID]
                     tmp.append(coordstemp[objectID])                    
                     totcoords[objectID] = tmp
                 else:
                     totcoords[objectID] = coordstemp[objectID]
-                
-                #print(coordstemp)
+
                 val = 0
                 if objectID in absolutedist:
                     xdist[objectID] = xdist[objectID] + xdisttemp[objectID]
@@ -483,11 +472,11 @@ while field.isOpened():
                     absolutedist[objectID] = absolutedisttemp[objectID]
                 if objectID < 3:
                     data["teams"][0]["players"][objectID]['distance'] = absolutedist[objectID]
-            #print("X-distance traveled is: %.2f dm" % xdist)
-            #print("Y-distance traveled is: %.2f dm" % ydist)
+
                 print("Absolute distance traveled for ID %d is: %.2f dm" % (objectID, absolutedist[objectID]))
-            with open('/home/gustav/TIFX04/Arturs_kod/input.json', 'w') as outfile:
+            with open('input.json', 'w') as outfile:
                 json.dump(data,outfile)
+            
             absolutedisttemp = {}
             Runningtemp = {}
             Walkingtemp = {}
@@ -495,29 +484,20 @@ while field.isOpened():
             xdisttemp = {}
             ydisttemp = {}
             coordstemp = {}
+    
         #print(rect)
-        cv2.putText(frame1, "Status: {}".format('Movement'), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
+            cv2.putText(frame1, "Status: {}".format('Movement'), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
                     1, (0, 0, 255), 3)
         
 
     image = cv2.resize(frame1, (640,480))
     dilated = cv2.resize(dilated, (640,480))
-    #gray = cv2.resize(gray, (640,480))
-    #blur = cv2.resize(blur, (640,480))
-    #out.write(image)
     dilated = cv2.cvtColor(dilated, cv2.COLOR_GRAY2BGR)
-    #gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-    #blur = cv2.cvtColor(blur, cv2.COLOR_GRAY2BGR)
-    #subset1 = cv2.hconcat([gray,blur])
     subset2 = cv2.hconcat([image, dilated])
-    #final = cv2.vconcat([subset1, subset2])
     cv2.imshow("Final", subset2)
-    #cv2.imshow("feed2", fgmask)
     frame1 = frame2
     #reading a new value, this way the while loop will work
     ret2, frame2 = field.read()
-    #print("ret3 = ")
-    #print(ret3)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
@@ -558,7 +538,7 @@ print('Length of object list', len(objects))
 #plt.axis([0, 30, 0, 30])
 #plt.show()
 
-with open("/home/gustav/TIFX04/Arturs_kod/input.json") as json_file:
+with open("input.json") as json_file:
     parsed = json.load(json_file)
 print(json.dumps(parsed, indent=4))
 
