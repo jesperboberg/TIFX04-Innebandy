@@ -35,6 +35,10 @@ Runningtemp = {}
 Joggingtemp = {}
 Walkingtemp = {}
 
+ProcentRunning = {}
+ProcentJogging = {}
+ProcentWalking = {}
+
 x = 0
 y = 0
 
@@ -370,9 +374,9 @@ while field.isOpened():
             x = abs(xpoint[objectID]-aprim[0][0][0])
             y = abs(ypoint[objectID]-aprim[0][0][1])
             if objectID in coordstemp:
-                coordstemp[objectID].append([xcoord, ycoord])
+                coordstemp[objectID].append((xcoord, ycoord))
             else:
-                coordstemp[objectID] = [[xcoord, ycoord]]
+                coordstemp[objectID] = [(xcoord, ycoord)]
             #print(coordstemp)
             if objectID not in xdisttemp:
                 xdisttemp[objectID] = 0
@@ -466,7 +470,7 @@ while field.isOpened():
                 
                 if objectID in totcoords:
                     tmp = totcoords[objectID]
-                    tmp.append(coordstemp[objectID])                    
+                    tmp.extend(coordstemp[objectID])                    
                     totcoords[objectID] = tmp
                 else:
                     totcoords[objectID] = coordstemp[objectID]
