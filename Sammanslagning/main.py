@@ -6,6 +6,7 @@ import time
 import math
 import ctypes
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 from collections import defaultdict
 import json
 
@@ -18,6 +19,8 @@ ref_point = []
 cropping = False
 
 team = "Pixbo"
+
+untransformed = {}
 
 # Coordinates for heat map
 coordstemp = {}
@@ -34,10 +37,6 @@ Walking = defaultdict(int)
 Runningtemp = {}
 Joggingtemp = {}
 Walkingtemp = {}
-
-ProcentRunning = {}
-ProcentJogging = {}
-ProcentWalking = {}
 
 x = 0
 y = 0
@@ -83,6 +82,8 @@ boxes=np.zeros(4)
 val = 0
 plotvals = []
 throwvalue = 0
+
+finalFrame = 0
 
 data = None
 # Test i hallen hemma nedre vänster sen klockans varv o sist mitten. Punkter i planet man vill konvertera ner i.
@@ -274,7 +275,7 @@ start_time = time.time()
 cv2.namedWindow("Final")
 cv2.createTrackbar("Lower", "Final", 20,50,nothing)
 cv2.createTrackbar("Higher", "Final", 255,255,nothing)
-cv2.createTrackbar("D. Iterations", "Final", 20, 100, nothing)
+cv2.createTrackbar("D. Iterations", "Final", 25, 100, nothing)
 
 i = 0
 # Main loop
@@ -356,27 +357,38 @@ while field.isOpened():
         text = "ID {}".format(objectID)       
         cv2.putText(frame1, text, (centroid[0] - 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         cv2.circle(frame1, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
+
             
         #cv2.putText(fgmask, text, (centroid[0] - 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         #cv2.circle(fgmask, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
+        try:
+            untransformed[objectID].append([centroid[0], centroid[1]])
+        except KeyError:
+            untransformed[objectID] = [[centroid[0], centroid[1]]]
 
+        temporary = None
+
+        for value in untransformed[objectID]:
+            if temporary is None:
+                temporary = [value[0], value[1]]
+            cv2.line(frame1, (temporary[0], temporary[1]), (value[0], value[1]), color=(255, 255, 255), thickness=2, lineType=8)
+            temporary = [value[0], value[1]]
+        
         a = np.array([[centroid[0],centroid[1]]], dtype="float32")
         # TODO: next line shouldn't matter right?
         a = np.array([a])
 
         # TODO: this should be commented by someone who knows better than me
         aprim = cv2.perspectiveTransform(a, htransf)
-        if objectID == 0:
-            print(aprim[0][0])
         xcoord = aprim[0][0][0]
         ycoord = aprim[0][0][1]
         try:
             x = abs(xpoint[objectID]-aprim[0][0][0])
             y = abs(ypoint[objectID]-aprim[0][0][1])
             if objectID in coordstemp:
-                coordstemp[objectID].append((xcoord, ycoord))
+                coordstemp[objectID].append([xcoord, ycoord])
             else:
-                coordstemp[objectID] = [(xcoord, ycoord)]
+                coordstemp[objectID] = [[xcoord, ycoord]]
             #print(coordstemp)
             if objectID not in xdisttemp:
                 xdisttemp[objectID] = 0
@@ -470,7 +482,7 @@ while field.isOpened():
                 
                 if objectID in totcoords:
                     tmp = totcoords[objectID]
-                    tmp.extend(coordstemp[objectID])                    
+                    tmp.append(coordstemp[objectID])                    
                     totcoords[objectID] = tmp
                 else:
                     totcoords[objectID] = coordstemp[objectID]
@@ -503,7 +515,6 @@ while field.isOpened():
         cv2.putText(frame1, "Status: {}".format('Movement'), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
                     1, (0, 0, 255), 3)
         
-
     image = cv2.resize(frame1, (640,480))
     dilated = cv2.resize(dilated, (640,480))
     #gray = cv2.resize(gray, (640,480))
@@ -516,17 +527,21 @@ while field.isOpened():
     subset2 = cv2.hconcat([image, dilated])
     #final = cv2.vconcat([subset1, subset2])
     cv2.imshow("Final", subset2)
-    #cv2.imshow("feed2", fgmask)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        finalFrame = frame1
+        break
+    if i == 950:
+        finalFrame = frame1
+        break
+
     frame1 = frame2
     #reading a new value, this way the while loop will work
     ret2, frame2 = field.read()
     #print("ret3 = ")
     #print(ret3)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-    if i == 950:
-        break
+
     
 # Exit GUI and release video streams
 cv2.destroyAllWindows()
@@ -557,14 +572,15 @@ print('Length of object list', len(objects))
 #plt.imshow(heatmap, extent=extent, origin="lower")
 #plt.show()
 
-#plt.plot(*zip(*totcoords))
-#plt.suptitle("Rörelse över planen")
-#plt.axis([0, 30, 0, 30])
-#plt.show()
+#for objectID in totcoords:
+#    plt.plot(*zip(*totcoords[objectID]))
+#    plt.suptitle("Rörelse över planen")
+#    plt.axis([0, 30, 0, 30])
+#    plt.show()
 
-with open("/home/gustav/TIFX04/Arturs_kod/input.json") as json_file:
-    parsed = json.load(json_file)
-print(json.dumps(parsed, indent=4))
+#with open("/home/gustav/TIFX04/Arturs_kod/input.json") as json_file:
+#    parsed = json.load(json_file)
+#print(json.dumps(parsed, indent=4))
 
 for objectID in objects:
     print('STATISTICS FOR ID %d' % objectID)
@@ -582,4 +598,27 @@ for objectID in objects:
 #print("Procent jogging: %.2f procent" % ProcentJogging)
 #print("Procent walking: %.2f procent" % ProcentWalking)
 
+plt.subplot(1, 2, 1)
+
 print("Antalet kastade gånger = %.2f" % throwvalue)
+for objectID in totcoords:
+    for value in totcoords[objectID]:
+        plt.scatter(value[0], value[1])
+
+for objectID in totcoords:
+    for value in totcoors[objectID]:
+        
+
+
+#plt.show()
+finalFrame = cv2.resize(finalFrame, (640,480))
+plt.subplot(1,2,2)
+plt.imshow(finalFrame)
+#cv2.namedWindow("Result")
+#cv2.imshow("Result", finalFrame)
+#cv2.waitKey()
+
+plt.show()
+
+input('Press enter to close...')
+cv2.destroyAllWindows()
