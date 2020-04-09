@@ -9,6 +9,9 @@ import ctypes
 import matplotlib.pyplot as plt
 from collections import defaultdict
 import json
+from ftplib import FTP 
+import os
+import fileinput
 
 # TODO: Backen behöver du denna linen?
 # pytesseract.pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
@@ -92,12 +95,33 @@ data = None
 #pts_dst = np.array([[0,0], [0,200], [170,200], [170,0],[85,100]])
 pts_dst = np.array([[0,0], [61,0], [61,67], [0,67], [30.5,30]])
 
-
 ct = CentroidTracker.CentroidTracker()
 
-with open('Json/input.json') as json_file:
+ftp = FTP()
+ftp.set_debuglevel(2)
+ftp.connect('ftp.hindret.eu', 21) 
+ftp.login('hindret.eu','TIFXib2020')
+ftp.cwd('/IB')
+
+with open('/home/gustav/TIFX04/Arturs_kod/input.json') as json_file:
     data = json.load(json_file)
 
+
+
+def ftp_upload(localfile, remotefile):
+  fp = open(localfile, 'rb')
+  try:
+    ftp.storbinary('STOR %s' % remotefile, fp, 1024)
+  except Exception:
+    print("remotefile not exist error caught" + remotefile)
+    path,filename = os.path.split(remotefile)
+    print("creating directory: " + remotefile)
+    ftp.mkd(path)
+    ftp_upload(localfile, remotefile)
+    fp.close()
+    return
+  fp.close()
+  print ("after upload " + localfile + " to " + remotefile)
 
 # Method for choosing area for clock
 def shape_selection(event, x, y, flags, param):
@@ -205,7 +229,7 @@ field = cv2.VideoCapture("Video/IdaEliasKlubba.MP4")
 
 # Loop for choosing coordinates for projecting
 while True:
-    field = cv2.VideoCapture("Video/IdaEliasKlubba.MP4")
+    field = cv2.VideoCapture("/home/gustav/TIFX04/Arturs_kod/test2.MP4")
     ret, framefield = field.read()
     if not ret:
         continue
@@ -259,7 +283,7 @@ hog = cv2.HOGDescriptor()
 hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 
 # Open webcam video stream 0 for built-in webcam, 1 for external webcam
-field = cv2.VideoCapture("Video/IdaEliasKlubba.MP4")
+field = cv2.VideoCapture("/home/gustav/TIFX04/Arturs_kod/test2.MP4")
 
 frame_width = int( field.get(cv2.CAP_PROP_FRAME_WIDTH))
 frame_height =int( field.get( cv2.CAP_PROP_FRAME_HEIGHT))
@@ -528,8 +552,9 @@ while field.isOpened():
             #print("X-distance traveled is: %.2f dm" % xdist)
             #print("Y-distance traveled is: %.2f dm" % ydist)
                 print("Absolute distance traveled for ID %d is: %.2f dm" % (objectID, absolutedist[objectID]))
-            with open('Json/input.json', 'w') as outfile:
+            with open('/home/gustav/TIFX04/Arturs_kod/input.json', 'w') as outfile:
                 json.dump(data,outfile)
+            ftp_upload('/home/gustav/TIFX04/Arturs_kod/input.json', 'input.json')
             absolutedisttemp = {}
             Runningtemp = {}
             Walkingtemp = {}
@@ -570,6 +595,8 @@ while field.isOpened():
 cv2.destroyAllWindows()
 field.release()
 clockimages.release()
+ftp_upload('/home/gustav/TIFX04/Arturs_kod/input.json', 'input.json')
+ftp.quit()
 
 for objectID in objects:
     # Distance calculations
@@ -606,7 +633,7 @@ print('Length of object list', len(objects))
 #plt.axis([0, 30, 0, 30])
 #plt.show()
 
-with open("Json/input.json") as json_file:
+with open("/home/gustav/TIFX04/Arturs_kod/input.json") as json_file:
     parsed = json.load(json_file)
 print(json.dumps(parsed, indent=4))
 
