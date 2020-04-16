@@ -10,22 +10,22 @@
                     "distance": 118
                 },
                 {
-                    "id":2,
+                    "id":1,
                     "name": "Ludde",
                     "number": 1111,
                     "distance": 14500
                 },
                 {
-                    "id": 1,
+                    "id": 2,
                     "name": "Ida Hoglund Persson",
                     "number": 21,
                     "distance": 35
                 },
-                {
-                    "id": 7,
-                    "name": "Preisko",
-                    "number": 99,
-                    "distance": 1234
+		{
+                    "id": 3,
+                    "name": "Jeppeboi",
+                    "number": 1234,
+                    "distance": 350
                 }
             ]
         },
@@ -33,26 +33,26 @@
             "teamName": "Storvreta",
             "players": [
                 {
-                    "id":2,
-                    "name": "Jonathan Stalberg",
+                    "id":4,
+                    "name": "Gurra",
                     "number": 3200,
                     "distance": 145
                 },
                 {
-                    "id":2,
+                    "id":5,
                     "name": "Backen",
                     "number": 4567,
                     "distance": 1
                 },
                 {
-                    "id":2,
+                    "id":6,
                     "name": "Preisko",
                     "number": 9999,
                     "distance": 11
                 },
                 {
-                    "id": 3,
-                    "name": "Ida Hoglund Persson",
+                    "id": 7,
+                    "name": "Arturito",
                     "number": 2100,
                     "distance": 166
                 }
