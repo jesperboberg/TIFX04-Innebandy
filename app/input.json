@@ -8,9 +8,9 @@
                     "name": "Jonathan Stalberg",
                     "number": 32,
                     "distance": 118
-		    "walkPart": 20
-		    "jogPart": 30
-		    "runPart": 50
+			"walkPart": 20
+			"jogPart": 30
+			"runPart": 50
                 },
                 {
                     "id":1,
