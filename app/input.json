@@ -8,24 +8,36 @@
                     "name": "Jonathan Stalberg",
                     "number": 32,
                     "distance": 118
+		    "walkPart": 20
+		    "jogPart": 30
+		    "runPart": 50
                 },
                 {
                     "id":1,
                     "name": "Ludde",
                     "number": 1111,
                     "distance": 14500
+		    "walkPart": 20
+		    "jogPart": 30
+		    "runPart": 50
                 },
                 {
                     "id": 2,
                     "name": "Ida Hoglund Persson",
                     "number": 21,
                     "distance": 35
+		    "walkPart": 20
+		    "jogPart": 30
+		    "runPart": 50
                 },
 		{
                     "id": 3,
                     "name": "Jeppeboi",
                     "number": 1234,
                     "distance": 350
+		    "walkPart": 20
+		    "jogPart": 30
+		    "runPart": 50
                 }
             ]
         },
@@ -37,24 +49,36 @@
                     "name": "Gurra",
                     "number": 3200,
                     "distance": 145
+		    "walkPart": 20
+		    "jogPart": 30
+		    "runPart": 50
                 },
                 {
                     "id":5,
                     "name": "Backen",
                     "number": 4567,
                     "distance": 1
+		    "walkPart": 20
+		    "jogPart": 30
+		    "runPart": 50
                 },
                 {
                     "id":6,
                     "name": "Preisko",
                     "number": 9999,
                     "distance": 11
+		    "walkPart": 20
+		    "jogPart": 30
+		    "runPart": 50
                 },
                 {
                     "id": 7,
                     "name": "Arturito",
                     "number": 2100,
                     "distance": 166
+		    "walkPart": 20
+		    "jogPart": 30
+		    "runPart": 50
                 }
             ]
         }
