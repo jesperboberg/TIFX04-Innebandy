@@ -17,18 +17,18 @@
                     "name": "Ludde",
                     "number": 1111,
                     "distance": 14500,
-		    "walkPart": 20,
-		    "jogPart": 30,
-		    "runPart": 50
+		    "walkPart": 9,
+		    "jogPart": 5,
+		    "runPart": 5
                 },
                 {
                     "id": 2,
                     "name": "Ida Hoglund Persson",
                     "number": 21,
                     "distance": 35,
-		    "walkPart": 20,
+		    "walkPart": 0,
 		    "jogPart": 30,
-		    "runPart": 50
+		    "runPart": 70
                 },
 		{
                     "id": 3,
