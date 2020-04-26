@@ -1,0 +1,647 @@
+import CentroidTracker
+import numpy as np
+import cv2
+import time
+import math
+import matplotlib.pyplot as plt
+from collections import defaultdict
+import json
+from ftplib import FTP
+import os
+#import ctypes
+#import pytesseract
+import fileinput
+# TODO: Backen behöver du denna linen?
+# This line needs to go at least once. THe path depends on where you installed pytesseract. 
+# pytesseract.pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+
+
+
+# initialize the list of reference points and boolean indicating whether cropping is being performed or not
+ref_point = []
+cropping = False
+team = "Storvreta" # Choose the team to add data to in the json file
+
+# Initialize coordinates
+coordstemp = defaultdict(list) # Var (list) förrut
+totcoords = defaultdict(list) # Var (list) förrut
+totDist = defaultdict(int)
+
+# Variables for speed, distance and movement
+acceleration = defaultdict(list)
+Running = defaultdict(int)
+Jogging = defaultdict(int)
+Walking = defaultdict(int)
+Runningtemp = defaultdict(int)
+Joggingtemp = defaultdict(int)
+Walkingtemp = defaultdict(int)
+ProcentRunning = defaultdict(int)
+ProcentJogging = defaultdict(int)
+ProcentWalking = defaultdict(int)
+
+speedone = 0
+speedtwo = 0
+sekundacceleration = defaultdict(float)
+acc = 0
+
+x = 0
+y = 0
+
+fps = 30
+Runningborder = 26.8224/fps
+Joggingborder = 13.8582/fps
+
+xdist = defaultdict(int)
+ydist = defaultdict(int)
+absolutedist = defaultdict(int)
+
+xdisttemp = defaultdict(int)
+ydisttemp = defaultdict(int)
+absolutedisttemp = defaultdict(int)
+
+xcoord = 0
+ycoord = 0
+
+xpoint = {}
+ypoint = {}
+
+tmp = []
+
+#Constants
+global error
+error = 0
+i = 0
+click = 0
+nd = 0
+k=0
+
+
+# Storing rects and points to track and use later on
+rectList = []
+posList = []
+# Unsorted variables
+global g
+g = 0
+Sekund = 0
+Minut = 0
+boxes=np.zeros(4)
+plotvals = []
+throwvalue = 0
+data = None
+
+
+# Coordinates on the field you want to convert down into. One pixel corresponds to one dm.
+#pts_dst = np.array([[0,0], [0,200], [170,200], [170,0],[85,100]])
+#pts_dst = np.array([[0,0], [61,0], [61,67], [0,67], [30.5,30]]) #IdaEnsam....
+pts_dst = np.array([[0,0],[61,0],[61,134],[0,134],[30.5,67]]) #Maxlöpning
+
+
+ct = CentroidTracker.CentroidTracker()
+
+# Initialize the connection to FileZilla for uploading files for connection to app.
+ftp = FTP()
+ftp.set_debuglevel(2)
+ftp.connect('ftp.hindret.eu', 21) # Host and port
+ftp.login('hindret.eu','TIFXib2020') # Username and password
+ftp.cwd('/IB') # Change directory.
+
+with open('Json/input.json') as json_file: #Open json file to write to later on.
+    data = json.load(json_file)
+
+# Function that upload files to FileZilla. Takes the local file and uploads it on the remotefile.
+def ftp_upload(localfile, remotefile):
+    fp = open(localfile, 'rb')
+    try:
+        ftp.storbinary('STOR %s' % remotefile, fp, 1024)
+    except Exception:
+        print("remotefile not exist error caught" + remotefile)
+        path,filename = os.path.split(remotefile)
+        print("creating directory: " + remotefile)
+        ftp.mkd(path)
+        ftp_upload(localfile, remotefile)
+        fp.close()
+        return
+    fp.close()
+    print ("after upload " + localfile + " to " + remotefile)
+
+
+# Method for choosing area for clock
+def shape_selection(event, x, y, flags, param):
+    # grab references to the global variables
+    global ref_point, cropping
+
+    # if the left mouse button was clicked, record the starting (x, y) coordinates and indicate that cropping is being
+    # performed
+    if event == cv2.EVENT_LBUTTONDOWN:
+        ref_point = [(x, y)]
+        cropping = True
+
+    # check to see if the left mouse button was released
+    elif event == cv2.EVENT_LBUTTONUP:
+        # record the ending (x, y) coordinates and indicate that the cropping operation is finished
+        ref_point.append((x, y))
+        cropping = False
+        # draw a rectangle around the region of interest
+        cv2.rectangle(frameclock, ref_point[0], ref_point[1], (0, 255, 0), 2)
+        cv2.imshow("image", frameclock)
+
+# Mean square error function
+def mse(imageA, imageB):
+    err = 0
+    # The "MeanSquaredError" between the two images is the sum of the squared difference between the two images:
+    # TODO: Detta är fult som fan
+    if imageA is not None and imageB is not None: # Check if we have two images to compare.
+        err = np.sum((imageA.astype("float") - imageB.astype("float")) ** 2) #Calc. the error between the images.
+        err /= float(imageA.shape[0] * imageA.shape[1])
+    # Return the mse, the lower the error, the more "similar" the two images are
+    return err
+
+# Method for choosing coordinates to project
+def onMouse(event, i, j, flags, param):
+    global posList
+    global click
+    if event == cv2.EVENT_LBUTTONDOWN: #If the left mousebutton is pressed.
+        posList.append((i, j)) # Save the coordinates of the click
+        click = click + 1 # Count the numbers of click
+        cv2.circle(framefield, (i, j), 2, (0, 255, 0), 2) # Paint a circle where the mouse is pressed.
+        cv2.putText(framefield, "{}".format(click), (i+3, j+3), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2) # Put the
+        # number of click at the point.
+        cv2.imshow(img_name, framefield) # Display the image
+
+# Function for Resizing and Displaying videos
+def ResizeDisplay(image, Image):
+    image = cv2.resize(image, (640, 480)) # Resize the images
+    cv2.imshow("{}" .format(Image), image) # Show the image
+    return image # Return the resized image.
+
+# Function for Croping images and displaying it
+def CropImage(image):
+    crop_img = image[ref_point[0][1]:ref_point[1][1], ref_point[0][0]:ref_point[1][0]] # Use the previously saved points
+    # for extracting the same image over the gameclock over and over again.
+    cv2.imshow("crop_img", crop_img) # Display image.
+    return crop_img # Return the small, cropped image.
+
+# Function to just continue pass this point in the code.
+def nothing(x):
+    pass
+
+# Function to display all the clicked points to double-check them.
+def DisplayPoints(List, Image, img_name):
+    g = 0
+    for n in List:
+        g = g+1 # To increase the value means that all of the points will be shown.
+        cv2.circle(Image, n, 2, (0, 255, 0), 2) # Show the circles
+        cv2.putText(Image, "{}".format(g), n, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2) # Show the number of points
+        cv2.imshow(img_name, Image) # Show the final image.
+
+def PrepFrames(frame1, frame2):
+    #Difference between first and second frame
+    diff = cv2.absdiff(frame1, frame2)
+    #Convert difference to gray scale mode, easier to use
+    gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+    #Smoothing the picture
+    blur = cv2.GaussianBlur(gray, (5,5), 0)
+    # Extrace the trackbar positions.
+    low = cv2.getTrackbarPos("Lower", "Final")
+    high = cv2.getTrackbarPos("Higher", "Final")
+    # Adjust threshold values here
+    _, thresh = cv2.threshold(blur, low, high, cv2.THRESH_BINARY)
+    return thresh # Return the threshhold
+
+# Function to display which ID:s are used in the video for every given frame.
+def IDContourShow(text, frame):
+    # Put the ID by the contour hitbox
+    cv2.putText(frame, text, (centroid[0] - 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    # Put a circle where you extract the coordinates from
+    cv2.circle(frame, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
+    # Put the ID:s on the left side of the screen.
+    cv2.putText(frame, text, (10, 20 + 50 * objectID), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+
+# Function to calculate the acceleration for every half second
+def CalcAcc(sekundacceleration):
+    speedtwo = sekundacceleration[objectID]/fps # Declare a speed between two extractions and converted to m/s.
+    acc = fps/20*(speedtwo-speedone) # Calculating the different accelerations in m/s^2 for every halv second.
+    return acc # Return the acceleration.
+
+clock = cv2.VideoCapture(0) # Initiate the videofeed from the clock-camera.
+
+# Running while choosing clock area
+while True:
+    ret, frameclock = clock.read() # Frameclock is a "screenshot" of the clock videofeed for every frame. Ret is true
+    # if the frame "frameclock" exists.
+    ResizeDisplay(frameclock, "Frameclock")
+    # If the frame "frameclock" doesn't exist we break the loop and end the program.
+    if not ret:
+        break
+    k = cv2.waitKey(1) # This makes it possible to manipulate the video feed via keybord input.
+
+    if k%256 == 32: # If SPACE is clicked do the following.
+        clone = frameclock.copy() # Clone the frame / Take a screenshot.
+        cv2.namedWindow("image") # Name the window
+        cv2.setMouseCallback("image", shape_selection) # Set up the availability of selecting a shape over the clock.
+
+        # keep looping until the 'q' key is pressed
+        while True:
+            # display the image and wait for a keypress
+            cv2.imshow("image", frameclock)
+            key = cv2.waitKey(1) & 0xFF
+
+            # if the 'r' key is pressed, reset the cropping region
+            if key == ord("r"):
+                image = clone.copy()
+
+            # if the 'c' key is pressed, break from the loop
+            elif key == ord("c"):
+                break
+
+        # If there are two reference points, then crop the region of interest from the image and display it
+        if len(ref_point) == 2:
+            CropImage(clone) # Crop the "clone" frame to extract clock.
+            cv2.imwrite("Crop_img.jpg", CropImage(clone)) # Save this image to save image dimensions for later useage.
+            cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+    if k%256 == 27: # If ESC is pressed destroy the windows.
+        print("Escape hit, closing...")
+        cv2.destroyAllWindows() # Destroy the windows.
+        break # And the break the loop to continue program.
+
+# TODO: This shouldn't be saved on computer, faster in cache somehow
+# Read the image saved before. This once again is to keep dimensions. This initializes the Reference image to check diff
+Ref_img = cv2.imread("crop_img.jpg")
+cv2.startWindowThread() # Initialize that a window will open up.
+
+# Loop for choosing coordinates for projecting
+while True:
+    field = cv2.VideoCapture("Video/Maxlöpning.MP4") # This is where the camera feed for the field is initialize so we
+    # can calibrate the projection from cameraview to the field.
+    ret, framefield = field.read() # See previous .read()
+    if not ret:
+        continue
+    ResizeDisplay(framefield, "Framefield")
+    framefield = ResizeDisplay(framefield, "Framefield")
+    k = cv2.waitKey(1)
+
+    # Press ESC to close windows and continue
+    if k%256 == 27:
+        print("Escape hit, closing...")
+        cv2.destroyAllWindows()
+        break
+
+    # Press r to reset posList and re-choose coordinates
+    if k%256 == ord("r"):
+        posList = []
+
+    # Press c to see chosen coordinates
+    if k%256 == ord("c"):
+        DisplayPoints(posList, framefield, "Points")
+
+    # Press space to take screenshot
+    elif k%256 == 32:
+        img_name = "WindowName"
+        ResizeDisplay(framefield,img_name)
+        framefield = ResizeDisplay(framefield, img_name)
+        cv2.setMouseCallback('WindowName', onMouse)
+
+points = np.array(posList)
+
+# Calculate matrix H for coordinate projecting to 2D
+htransf, status = cv2.findHomography(points, pts_dst)
+
+# Reset webcams
+clock.release()
+field.release()
+
+# Reopen the stream to the video feed from the clock.
+clockimages = cv2.VideoCapture(0)
+
+# Initialize the possiblity to detect different shapes based on images.
+hog = cv2.HOGDescriptor()
+hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector()) # Use the specific peopledetector.
+
+# Open webcam video stream 0 for built-in webcam, 1 for external webcam
+field = cv2.VideoCapture("Video/Maxlöpning.MP4")
+
+# Extract the frame height and width.
+frame_width = int( field.get(cv2.CAP_PROP_FRAME_WIDTH))
+frame_height =int( field.get( cv2.CAP_PROP_FRAME_HEIGHT))
+
+# Read two images from the video stream to be able to compare and subtract them.
+ret1, frame1 = field.read()
+ret2, frame2 = field.read()
+
+# Initialize start time to check how long time has ellapsed.
+start_time = time.time()
+
+# Name the window for the videostream and display the trackbars in the window.
+cv2.namedWindow("Final")
+cv2.createTrackbar("Lower", "Final", 20,50,nothing)
+cv2.createTrackbar("Higher", "Final", 255,255,nothing)
+cv2.createTrackbar("D. Iterations", "Final", 35, 100, nothing)
+
+# Main loop
+while field.isOpened(): # While noone exists the program we will continue running it
+
+    # Check if any frame is None then break
+    if not ret2 or not ret1:
+        k = k+1
+        if k == 7: # This specific value is to compensate for corrupt frames in recorded videos. Not necessary for live.
+            break
+        print('continue bc: ', ret1, ret2)
+        # Set the new frame to the previous one to continue the stream.
+        frame1 = frame2
+        ret1 = ret2
+        #reading a new value, this way the while loop will work
+        ret2, frame2 = field.read()
+        continue
+
+
+    # Check if any frame is None then break
+    if frame2 is None:
+        print("Frame stream broken")
+        break
+
+    if frame1 is None:
+        print("Frame stream broken")
+        break
+
+    i = i+1
+    # Analyse the two images to find the difference between them to later extract human silhouettes from.
+    dilated = cv2.getTrackbarPos("D. Iterations", "Final")
+    thresh = PrepFrames(frame1, frame2) # Prepare the two friends for analysis bu running them through our function.
+    dilated = cv2.dilate(thresh, None, iterations=dilated) # dilated is an image of the threshold image from above.
+    #Finding contours, obs this is a list/array
+    contours, _ = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Iterate over all identified contours
+    for contour in contours:
+        #x,y coordinate, then width and height
+        (x, y, w, h) = cv2.boundingRect(contour)
+        boxes = np.array([x, y, x+w, y+h]) #Add them to an array.
+
+        rect = [x,y,x+w,y+h]
+        rectList.append(rect)
+        # Adjust how small boxes we tolerate here
+        if cv2.contourArea(contour) < 500: # If the boxes are smaller than this, ignore them and carry on.
+            continue
+
+        # Adjust how big boxes we tolerate here
+        #if cv2.contourArea(contour) > 10000:
+        #   continue
+
+        cv2.rectangle(frame1, (x, y), (x+w, y+h), (0, 255, 0), 2) # Put a rectangle where the silhouette is found.
+
+    k = cv2.waitKey(1)
+
+    #objects = ct.update(rect)
+    objects = ct.update(rectList) # Update the list of rectangles using the CentroidTracker script.
+    rectList=[] # Set the rectlist to empty for next iteration of loop.
+
+    # Iterate over all detected objects
+    for (objectID, centroid) in objects.items():
+        text = "ID {}".format(objectID) # Save the ID in the current loopto the string.
+        IDContourShow(text, frame1) # Use the string above to add the ID:s to the left side of the screen.
+        a = np.array([[centroid[0],centroid[1]]], dtype="float32") # Extract the coordinates in the camera-view.
+        # TODO: next line shouldn't matter right?
+        a = np.array([a]) # Necessary line for perspectiveTransform to work
+        # TODO: this should be commented by someone who knows better than me
+        aprim = cv2.perspectiveTransform(a, htransf) # Using the matrix htransf and the extracted coordinates a we can
+        # project them down onto the field and get the field coordinates aprim.
+        # Extract the x- and y-components of the fieldcoords.
+        xcoord = aprim[0][0][0]
+        ycoord = aprim[0][0][1]
+        try: # Try and do these operations.
+            x = abs(xpoint[objectID]-xcoord) # This is the distance in x-way between the last x-position and the new one
+            y = abs(ypoint[objectID]-ycoord) # This is the distance in y-way between the last y-position and the new one
+            nd = math.sqrt(x*x + y*y) # Calculate the absolute distance traveled.
+            if nd > 2: # If the absolute distance is too long it is because of changes in the box and not movement.
+                x=0
+                y=0
+            if objectID in coordstemp and nd <= 2: # Only append the coordinates if the movement isn't too far.
+                coordstemp[objectID].append((xcoord, ycoord))
+            elif nd <= 2: # If it is a new ID just add the coordinates if the movement isn't too far.
+                coordstemp[objectID] = [(xcoord, ycoord)]
+            if objectID not in xdisttemp: # If it's a new ID just put the x- and y-distance as it's first distances.
+                xdisttemp[objectID] = x
+                ydisttemp[objectID] = y
+            else: # If it's an already existing ID add the x- and y-distances on top of the previous ones.
+                xdisttemp[objectID] = xdisttemp[objectID] + x
+                ydisttemp[objectID] = ydisttemp[objectID] + y
+            nowdistance = math.sqrt(x*x+y*y) # Recalculate the absolute distance if x- and y- are still not 0.
+            if objectID in absolutedisttemp:
+                absolutedisttemp[objectID] = absolutedisttemp[objectID] + nowdistance # Add to if previous ID exists
+                if nowdistance > 0:
+                    sekundacceleration[objectID] = sekundacceleration[objectID] + nowdistance # Add to acc-calculator
+            else: # Put Nowdistance as initial value.
+                absolutedisttemp[objectID] = nowdistance
+
+            # Redefine these values for next loop.
+            xpoint[objectID] = xcoord
+            ypoint[objectID] = ycoord
+
+            # Running faster than 2.68224 m/s, jogging between that and 1.38582 m/s, walking below that
+            # Add 1 to the corresponding part depending on how nowdistance compares to them. This will be used to
+            # calculate the percentages later.
+            if nowdistance > Runningborder:
+                if objectID is not None and objectID not in Runningtemp:
+                    Runningtemp[objectID] = 1
+                else:
+                    Runningtemp[objectID] = Runningtemp[objectID] + 1
+            elif nowdistance < Joggingborder:
+                if objectID is not None and objectID not in Joggingtemp:
+                    Walkingtemp[objectID] = 1
+                else:
+                    Walkingtemp[objectID] = Walkingtemp[objectID] + 1
+            else:
+                if objectID is not None and objectID not in Walkingtemp:
+                    Joggingtemp[objectID] = 1
+                else:
+                    Joggingtemp[objectID] = Joggingtemp[objectID] + 1
+        except KeyError: # If we get an error this will ensure the next loop will continue.
+            xpoint[objectID] = aprim[0][0][0]
+            ypoint[objectID] = aprim[0][0][1]
+
+    if (i % fps/2) == 0: # This is done to decrease the error when calculating the acceleration and makes the calcs.
+                         # happen ones every half second.
+        for objectID in objects: # Go through each of the objects.
+            if objectID is not None and objectID in sekundacceleration: # If this is okay, calculate the acceleration.
+                acc = CalcAcc(sekundacceleration)
+                acceleration[objectID].append(acc)
+                speedone = speedtwo # Initiate a new value to keep loop changing to next time.
+                sekundacceleration[objectID] = 0 #Set value to 0 for next iteration.
+
+    if (i % fps) == 0: # Check every second.
+        ret, clock = clockimages.read() # Extract a new frame from the clock feed.
+        print("--- %s seconds ---" % (time.time() - start_time)) # Print the elapsed time from the start.
+        CropImage(clock) # Crop the new image
+        small_frame = CropImage(clock) # Save the new cropped image
+        error = mse(Ref_img, small_frame) # Calculate the error
+        Ref_img = small_frame # Save the new frame as the old one ensuring the next loop will work.
+
+        if error < 0: # If the error is small enough the clock hasn't moved and the game is paused so just throw all the
+                      # temporary values.
+            print("Same image")
+            #print("%.2f : %.2f" % (Minut, Sekund))
+            coordstemp = {}
+            absolutedisttemp = {}
+            Runningtemp = {}
+            Walkingtemp = {}
+            Joggingtemp = {}
+            xdisttemp = {}
+            ydisttemp = {}
+            throwvalue = throwvalue + 1
+        else: # If the error is larger the clock has ticked one second and we can add all the temporary values to the
+              # real ones.
+            #print("New image")
+            Sekund = Sekund + 1 # One second has elapsed and so we add one to the second-count.
+            if Sekund == 60: # If we have 60 seconds one minute has elapsed.
+                Sekund = 0 # We then put the Sekund-value to 0.
+                Minut = Minut + 1 # Add one to the Minut-value.
+            #print("%.2f : %.2f" % (Minut, Sekund))
+            for objectID in objects: # Go through the objects (ID:s)
+                print("objectID: ")
+                print(objectID)
+                if objectID is not None and objectID in Runningtemp: # If the objectID is part of Runningtemp
+                    Running[objectID] = Running[objectID] + Runningtemp[objectID] # Add the value to the actual Running
+                else: # If the object is None or not part of Runningtemp
+                    Running[objectID] = Running[objectID] # Just keep the value of Running as it was before.
+                if objectID is not None and objectID in Joggingtemp: # If the object is part of the Joggingtemp
+                    Jogging[objectID] = Jogging[objectID] + Joggingtemp[objectID] # Add the value to the actual Jogging
+                else: # If the object is None or not part of Joggingtemp
+                    Jogging[objectID] = Jogging[objectID] # Just keep the value of Jogging as it was before.
+                if objectID is not None and objectID in Walkingtemp: # If the objectID is part of Walkingtemp
+                    Walking[objectID] = Walking[objectID] + Walkingtemp[objectID] # Add the value to the actual Walking
+                else: # If the object is None or not part of Walkingtemp
+                    Walking[objectID] = Walking[objectID] # Just keep the value of Walking as it was before.
+                # Set all temporary values to 0
+                Walkingtemp[objectID] = 0
+                Joggingtemp[objectID] = 0
+                Runningtemp[objectID] = 0
+
+                if objectID is not None and objectID in coordstemp: # If the object is a part of Coordstemp:
+                    tmp = totcoords[objectID] # First extract the old coordinate list for the current ID
+                    tmp.extend(coordstemp[objectID]) # Extend that list with the current temporary coordinates.
+                    totcoords[objectID] = tmp # Insert the list back into the big list with total coordinates
+                    coordstemp[objectID] = [] # Det the temporary coords to 0.
+                else: # If the object is not part of Coordstemp:
+                    totcoords[objectID] = totcoords[objectID] # Just keep the values of total coordinates unchanged.
+                    coordstemp[objectID] = [] # Still set the temporary value to 0.
+
+                if objectID is not None and objectID in xdisttemp: # If the object is a part of the temporary distance:
+                    #print("ObjectID i absolutedist")
+                    #print(xdist[objectID])
+                    xdist[objectID] = xdist[objectID] + xdisttemp[objectID] # Add the temporary x-distance to the actual
+                    ydist[objectID] = ydist[objectID] + ydisttemp[objectID] # Add the temporary y-distance to the actual
+                    absolutedist[objectID] = absolutedist[objectID] + absolutedisttemp[objectID] # Same with absolute.
+                else: # If the object is None or not part of temporary distance.
+                    xdist[objectID] = xdist[objectID] # Keep the actual x-distance unchanged
+                    ydist[objectID] = ydist[objectID] # Keep the actual y-distance unchanged
+                    absolutedist[objectID] = absolutedist[objectID] # Keep the actual absolute-distance unchanged
+                if objectID < 3: # Testvalue to not change an objectID to high.
+                    data["teams"][0]["players"][objectID]['distance'] = absolutedist[objectID] #Insert absolute distance
+                    # value in the json file. "Write to json"
+                #print("Absolute distance traveled for ID %d is: %.2f dm" % (objectID, absolutedist[objectID]))
+            with open('Json/input.json', 'w') as outfile: # We choose the json file as our outfile
+                json.dump(data,outfile) # Preparing the json file for uploading to FileZilla
+            ftp_upload("Json/input.json","input.json") # Upload the json file to FileZilla to allow app readage.
+            # Set all temporary variables to 0 or empty again. 
+            absolutedisttemp = {}
+            Runningtemp = {}
+            Walkingtemp = {}
+            Joggingtemp = {}
+            xdisttemp = {}
+            ydisttemp = {}
+            coordstemp = {}
+        # Put the word movement at the top of the screen if movement has occured in the reference image. 
+        cv2.putText(frame1, "Status: {}".format('Movement'), (10, 20), cv2.FONT_HERSHEY_SIMPLEX,
+                    1, (0, 0, 255), 3)
+    
+    image = cv2.resize(frame1, (640,480)) # Resize frame 1 for display
+    dilated = cv2.resize(dilated, (640,480)) # Resize the dilated image for display
+    dilated = cv2.cvtColor(dilated, cv2.COLOR_GRAY2BGR) # Put color on the dilated image. 
+    subset2 = cv2.hconcat([image, dilated]) # Put the two images next to each other in the same window. 
+    cv2.imshow("Final", subset2) # Show the connected image. 
+    frame1 = frame2 # Set the previous second frame as the first new one. 
+    ret2, frame2 = field.read() #reading a new value, this way the while loop will work
+
+    if cv2.waitKey(1) & 0xFF == ord('q'): # If someone presses "q" we end the analysis and continue to after-work. 
+        break
+
+# Exit GUI and release video streams
+cv2.destroyAllWindows()
+field.release()
+clockimages.release()
+ftp_upload("Json/input.json","input.json") # Upload the final version of the json file. 
+
+
+for objectID in objects: # Go through each of the objects. 
+    totDist[objectID] = Running[objectID] + Jogging[objectID] + Walking[objectID] #Calc the total number of travels. 
+    if totDist[objectID] != 0: # As long as travel has occurred: 
+        ProcentRunning[objectID] = 100*Running[objectID]/totDist[objectID] # Calc percentages of Running
+        ProcentJogging[objectID] = 100*Jogging[objectID]/totDist[objectID] # Calc percentages of Jogging
+        ProcentWalking[objectID] = 100*Walking[objectID]/totDist[objectID] # Calc percentages of Walking
+
+# print("Längden av totcoords är: %.2f" % len(totcoords))
+#print('Iterations in mainloop: ', i) # Print number of iterations. 
+#print('Length of object list', len(objects))
+#print(totcoords[3])
+
+# Show the results
+for objectID in objects: 
+    print("Id: {}".format(objectID)) # Print every ID currently in frame on the final frame. 
+spelare = input("Vilket ID vill du se heatmappen för?") # Let the user select which ID they want to see the graphs for. 
+spelare = int(spelare) # Convert the input into an integer. 
+# Calculate the heatmap input using histogram2d. Bins is the number of pixels and range is the range. 
+heatmap, xedges, yedges = np.histogram2d(*zip(*totcoords[spelare]), bins=(200, 200), range=[[0,200],[0,200]])
+extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]] # Value for graph. 
+xlist = [range(0,len(acceleration[spelare]))] # Get the length of the acceleration. 
+ylist = [acceleration[spelare]] # Extract the values of acceleration based on the input. 
+
+
+ftp.cwd('Bilder') # Change dictionary on FIleZilla. 
+plt.clf() # Clear any previous image.
+plt.title("Heatmap over player movement") # Set the title. 
+plt.ylabel("Kortsida") # Set the label on the y-axis.
+plt.xlabel("Långsida") # Set the label on the x-axis.
+#plt.gca().invert_yaxis() #Invert eh y-axis depending of choice of pts_dst
+plt.imshow(heatmap, extent=extent, origin="lower") # Make an imshow of the heatmap
+fig = plt.gcf() #Convert to figure
+plt.show() # Actually show the heatmap
+fig.savefig("Figures/HeatmapMaintotcoords[{}].png".format(spelare)) # Save the heatmap to the computer. 
+
+plt.gcf() 
+plt.title("Player acceleration in m/s^2") #Set the title.
+plt.ylabel("Acceleration [m/s^2]") # Set the label on the y-axis.
+plt.xlabel("Halva sekunder") # #Set the label on the x-axis
+plt.plot(xlist, ylist,'ro') # Make a plot of the acceleration and mark it with red circles.
+fig2 = plt.gcf() # Convert to figure
+plt.show() # Show the acceleration image. 
+fig2.savefig("Figures/Acceleration[{}].png".format(spelare)) # Save the acceleration figure to the computer. 
+# Upload both the figures to FileZilla enabling app readage later. 
+ftp_upload("Figures/HeatmapMaintotcoords[{}].png".format(spelare), "HeatmapMaintotcoords[{}].png".format(spelare))
+ftp_upload("Figures/Acceleration[{}].png".format(spelare), "Acceleration[{}].png".format(spelare))
+
+ftp.quit() #Quit the connection to FileZilla
+
+with open("Json/input.json") as json_file:
+    parsed = json.load(json_file)
+print(json.dumps(parsed, indent=4)) # Print the entire json file. 
+
+for objectID in objects: # Go through the final ID:s and display all of their staticstics. 
+    print('STATISTICS FOR ID %d' % objectID)
+    if objectID in xdist:
+        print("X-distance traveled is: %.2f dm" % xdist[objectID])
+    if objectID in ydist:
+        print("Y-distance traveled is: %.2f dm" % ydist[objectID])
+    if objectID in absolutedist:
+        print("Absolute distance traveled is: %.2f dm" % absolutedist[objectID])
+    if objectID in ProcentRunning:
+        print("Percentage of travel as running: %.2f" % ProcentRunning[objectID])
+    if objectID in ProcentJogging:
+        print("Percentage of travel as jogging: %.2f" % ProcentJogging[objectID])
+    if objectID in ProcentWalking:
+        print("Percentage of travel as walking: %.2f" % ProcentWalking[objectID])
+    if objectID not in xdist and objectID not in ydist and objectID not in absolutedist:
+        print('no data collected')
+    print('------------------------------------------')
+print("Antalet kastade gånger = %.2f" % throwvalue) # Finally display how many seconds of info we threw away. 
