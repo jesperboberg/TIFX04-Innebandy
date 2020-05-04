@@ -7,37 +7,61 @@
                     "id": 0,
                     "name": "Jonathan Stalberg",
                     "number": 32,
-                    "distance": 118,
-		    "walkPart": 20,
-		    "jogPart": 30,
-		    "runPart": 50
+                    "distance": 3730,
+		    "standPart": 10,
+		    "walkPart": 24,
+		    "jogPart": 42,
+		    "runPart": 24
                 },
                 {
                     "id":1,
-                    "name": "Ludde",
-                    "number": 1111,
-                    "distance": 14500,
+                    "name": "Artur Engstrom",
+                    "number": 1,
+                    "distance": 100,
+		    "standPart": 90,
 		    "walkPart": 9,
-		    "jogPart": 5,
-		    "runPart": 5
+		    "jogPart": 1,
+		    "runPart": 0
                 },
                 {
                     "id": 2,
                     "name": "Ida Hoglund Persson",
                     "number": 21,
-                    "distance": 35,
-		    "walkPart": 0,
-		    "jogPart": 30,
-		    "runPart": 70
+                    "distance": 3500,
+		    "standPart": 5,
+		    "walkPart": 30,
+		    "jogPart": 40,
+		    "runPart": 25
                 },
 		{
                     "id": 3,
-                    "name": "Jeppeboi",
-                    "number": 1234,
-                    "distance": 350,
-		    "walkPart": 20,
-		    "jogPart": 30,
-		    "runPart": 50
+                    "name": "Jesper Boberg",
+                    "number": 12,
+                    "distance": 3400,
+		    "standPart": 5,
+		    "walkPart": 30,
+		    "jogPart": 40,
+		    "runPart": 25
+                },
+		{
+                    "id": 4,
+                    "name": "Gustav Hallberg",
+                    "number": 11,
+                    "distance": 3000,
+		    "standPart": 5,
+		    "walkPart": 30,
+		    "jogPart": 40,
+		    "runPart": 25
+                },
+				{
+                    "id": 5,
+                    "name": "Simon Matsson",
+                    "number": 8,
+                    "distance": 3700,
+		    "standPart": 5,
+		    "walkPart": 30,
+		    "jogPart": 40,
+		    "runPart": 25
                 }
             ]
         },
@@ -45,40 +69,64 @@
             "teamName": "Storvreta",
             "players": [
                 {
-                    "id":4,
-                    "name": "Gurra",
-                    "number": 3200,
-                    "distance": 145,
-		    "walkPart": 20,
-		    "jogPart": 30,
-		    "runPart": 50
+                    "id":0,
+                    "name": "Ludvig Lindblad",
+                    "number": 2,
+                    "distance": 2500,
+		    "standPart": 5,
+		    "walkPart": 30,
+		    "jogPart": 40,
+		    "runPart": 25
                 },
                 {
-                    "id":5,
-                    "name": "Backen",
-                    "number": 4567,
-                    "distance": 1,
-		    "walkPart": 20,
-		    "jogPart": 30,
-		    "runPart": 50
+                    "id":1,
+                    "name": "Jessica Preiman",
+                    "number": 1,
+                    "distance": 100,
+		    "standPart": 90,
+		    "walkPart": 9,
+		    "jogPart": 1,
+		    "runPart": 0
                 },
                 {
-                    "id":6,
-                    "name": "Preisko",
-                    "number": 9999,
-                    "distance": 11,
-		    "walkPart": 20,
-		    "jogPart": 30,
-		    "runPart": 50
+                    "id":2,
+                    "name": "Elias Nilsson",
+                    "number": 4,
+                    "distance": 4000,
+		    "standPart": 5,
+		    "walkPart": 30,
+		    "jogPart": 40,
+		    "runPart": 25
                 },
                 {
-                    "id": 7,
-                    "name": "Arturito",
-                    "number": 2100,
-                    "distance": 166,
-		    "walkPart": 20,
-		    "jogPart": 30,
-		    "runPart": 50
+                    "id": 3,
+                    "name": "Linnea Rensmo",
+                    "number": 27,
+                    "distance": 3280,
+		    "standPart": 5,
+		    "walkPart": 30,
+		    "jogPart": 40,
+		    "runPart": 25
+                },
+		{
+                    "id": 4,
+                    "name": "Jonathan Weidow",
+                    "number": 25,
+                    "distance": 4200,
+		    "standPart": 5,
+		    "walkPart": 30,
+		    "jogPart": 40,
+		    "runPart": 25
+                },
+		{
+                    "id": 5,
+                    "name": "Magnus Karlsteen",
+                    "number": 20,
+                    "distance": 4299,
+		    "standPart": 5,
+		    "walkPart": 30,
+		    "jogPart": 40,
+		    "runPart": 25
                 }
             ]
         }
