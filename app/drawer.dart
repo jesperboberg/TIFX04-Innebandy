@@ -1,69 +1,102 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-//import 'package:flutter/gestures.dart';
-//import 'package:url_launcher/url_launcher.dart';
+import 'package:innebandy_test1/aboutPage.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'betygPage.dart';
+import 'themeChanger.dart';
+import 'webScraper.dart';
+
 
 Widget drawer(BuildContext context) {
+  void _toDarkMode() {
+    ThemeBuilder.of(context).changeTheme();
+  }
   return Drawer(
-    // Add a ListView to the drawer. This ensures the user can scroll
-    // through the options in the drawer if there isn't enough vertical
-    // space to fit everything.
     child: ListView(
-      // Important: Remove any padding from the ListView.
-      padding: EdgeInsets.zero,
       children: <Widget>[
-        DrawerHeader(
-          child: Text('Settings'),
-          decoration: BoxDecoration(
-            color: Colors.blue,
-          ),
+        ListTile(
+          title: Text('Om oss'),
+          onTap: () {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (context) => AboutPage(context)));
+          },
         ),
+        Divider(),
         ListTile(
           title: Text('Betygsätt appen'),
           onTap: () {
-            Navigator.push(context,
-                new MaterialPageRoute(builder: (ctxt) => new FirstPage()));
+            Navigator.push(
+                context, new MaterialPageRoute(builder: (ctxt) => RatePage()));
           },
         ),
+        Divider(),
+        
+        
         ListTile(
-          title: Text('Kontakta oss'),
+          title: Text('SSL'),
           onTap: () {
             Navigator.push(context,
-                new MaterialPageRoute(builder: (ctxt) => new SecondPage()));
+                new MaterialPageRoute(builder: (ctxt) => WebScraper()));
           },
         ),
+        Divider(),
         ListTile(
-          title: Text('Om ApperApp'),
-          onTap: () {
-            Navigator.push(context,
-                new MaterialPageRoute(builder: (ctxt) => new SecondPage()));
-          },
+          title: Text('Byt tema'),
+          trailing: IconButton(
+              icon: Icon(Icons.lightbulb_outline), onPressed: _toDarkMode),
         ),
+
+        Divider(),
+          ListTile(
+            title: Text('Kontakta oss'),
+            onTap: () {
+              return showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: new Text("Kontakta oss"),
+                    content: new Text(
+                        "Ni kan kontakta oss på denna mejl: innebandystatistik@gmail.com"),
+                    actions: <Widget>[
+                      new RaisedButton(
+                        onPressed: () => _launchURL(
+                            'innebandystatistik@gmail.com',
+                            'InnebandyStatistik',
+                            'Hej, '),
+                        child: new Text('Skicka mail'),
+                      ),
+                      new FlatButton(
+                        child: new Text("Stäng"),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
       ],
     ),
   );
 }
 
-class FirstPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext ctxt) {
-    return new Scaffold(
-      appBar: new AppBar(
-        title: new Text("First Page"),
-      ),
-      body: new Text("I belongs to First Page"),
-    );
-  }
+class LinkTextSpan extends TextSpan {
+  LinkTextSpan({TextStyle style, String url, String text})
+      : super(
+            style: style,
+            text: text ?? url,
+            recognizer: TapGestureRecognizer()
+              ..onTap = () {
+                launch(url, forceSafariVC: false);
+              });
 }
-
-class SecondPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext ctxt) {
-    return new Scaffold(
-      appBar: new AppBar(
-        title: new Text("Second Page"),
-      ),
-      body: new Text("I belongs to Second Page"),
-    );
+_launchURL(String toMailId, String subject, String body) async {
+  var url = 'mailto:$toMailId?subject=$subject&body=$body';
+  if (await canLaunch(url)) {
+    await launch(url);
+  } else {
+    throw 'Could not launch $url';
   }
-}
-
+} 
