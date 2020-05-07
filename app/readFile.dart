@@ -1,34 +1,44 @@
-//import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:flutter/services.dart';
-
-
-
-
+import 'package:http/http.dart' as http;
 
 Future<List<Teams>> getTheFile() async {
-  String fileText = await rootBundle.loadString('assets/text/input.json');
-  Map<String, dynamic> input = jsonDecode(fileText);
-  List<Teams> teams = new List();
+    //var url= 'http://hindret.eu/IB/jonteinput.json'; // for collecting data live
+    var url='https://raw.githubusercontent.com/jesperboberg/TIFX04-Innebandy/master/app/input.json';
+    var response = await http.get(url);
+     List<Teams> teams = new List();
   List<Player> teamA = new List();
   List<Player> teamB = new List();
   List<String> teamNames = new List();
-  for (var i = 0; i < input['teams'].length; i++) {
-    teamNames.add(input['teams'][i]['teamName']);
-    for (var j = 0; j < input['teams'][i]['players'].length; j++) {
+     if (response.statusCode == 200) {
+      Map<String,dynamic> notesJson = json.decode(response.body);
+        for (var i = 0; i <notesJson['teams'].length; i++) {
+    teamNames.add(notesJson['teams'][i]['teamName']);
+    for (var j = 0; j < notesJson['teams'][i]['players'].length; j++) {
       if (i == 0) {
         teamA.add(new Player(
-            input['teams'][i]['players'][j]['name'],
-            input['teams'][i]['players'][j]['number'],
-            input['teams'][i]['players'][j]['distance']));
+            notesJson['teams'][i]['players'][j]['name'],
+            notesJson['teams'][i]['players'][j]['number'],
+            notesJson['teams'][i]['players'][j]['distance'],
+            notesJson['teams'][i]['players'][j]['standPart'],
+            notesJson['teams'][i]['players'][j]['walkPart'],
+            notesJson['teams'][i]['players'][j]['jogPart'],
+            notesJson['teams'][i]['players'][j]['runPart'],
+            notesJson['teams'][i]['teamName']));
       } else {
         teamB.add(new Player(
-            input['teams'][i]['players'][j]['name'],
-            input['teams'][i]['players'][j]['number'],
-            input['teams'][i]['players'][j]['distance']));
+            notesJson['teams'][i]['players'][j]['name'],
+            notesJson['teams'][i]['players'][j]['number'],
+            notesJson['teams'][i]['players'][j]['distance'],
+            notesJson['teams'][i]['players'][j]['standPart'],
+            notesJson['teams'][i]['players'][j]['walkPart'],
+            notesJson['teams'][i]['players'][j]['jogPart'],
+            notesJson['teams'][i]['players'][j]['runPart'],
+            notesJson['teams'][i]['teamName']));
       }
     }
   }
+     
+     }
 
   teams.add(new Teams(teamNames.elementAt(0), teamA));
   teams.add(new Teams(teamNames.elementAt(1), teamB));
@@ -39,7 +49,12 @@ class Player {
   String name;
   int nr;
   int distance;
-  Player(this.name, this.nr, this.distance);
+  String team;
+  int standPart;
+  int walkPart;
+  int jogPart;
+  int runPart;
+  Player(this.name, this.nr, this.distance, this.standPart, this.walkPart, this.jogPart, this.runPart, this.team);
 }
 
 class Teams {
